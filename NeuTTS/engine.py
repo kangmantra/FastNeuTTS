@@ -1,0 +1,134 @@
+import re
+import torch
+import librosa
+import numpy as np
+from itertools import cycle
+from NeuTTS.codec import TTSCodec
+from lmdeploy import pipeline, TurbomindEngineConfig, GenerationConfig
+
+def compile_upsampler_with_triton_check(upsampler):
+    """
+    Checks for Triton and compiles the upsampler's forward pass if found.
+    
+    Args:
+        upsampler: The model object containing the upsampler structure.
+    """
+    try:
+        # Check if Triton is available. Importing it is the standard way.
+        import triton
+        
+        # If the import succeeds, proceed with compilation
+        upsampler.model.dec.resblocks[2].forward = torch.compile(
+            upsampler.model.dec.resblocks[2].forward,
+            mode="reduce-overhead", 
+            dynamic=True            
+        )
+    except ImportError:
+        # If Triton is not found, print the required message and pass
+        print("Triton not found, please install triton/triton_windows for faster speed although optional.")
+        pass
+        
+class TTSEngine:
+    """
+    Uses LMdeploy to run maya-1 with great speed
+    """
+
+    def __init__(self, memory_util = 0.1, tp = 1, enable_prefix_caching = True, quant_policy = 8):
+        """
+        Initializes the model configuration.
+
+        Args:
+            memory_util (float): Target fraction of GPU memory usage (0.0 to 1.0). Default: 0.3
+            tp (int): Number of Tensor Parallel (TP) ranks. Use for multiple gpus. Default: 1
+            enable_prefix_caching (bool): If True, cache input prefixes. Use for batching. Default: True
+            quant_policy (int): KV cache quant bit-width (e.g., 8 or None). Saves vram at slight quality cost. Default: 8
+        """
+        self.tts_codec = TTSCodec()
+        backend_config = TurbomindEngineConfig(cache_max_entry_count=memory_util, tp=tp, enable_prefix_caching=enable_prefix_caching, dtype='bfloat16', quant_policy=quant_policy)
+        self.pipe = pipeline("neuphonic/neutts-air", backend_config=backend_config)
+        self.gen_config = GenerationConfig(top_p=0.95,
+                              top_k=50,
+                              temperature=1.0,
+                              max_new_tokens=1024,
+                              repetition_penalty=1.1,
+                              do_sample=True,
+                              min_p=0.1,
+                              min_new_tokens=40
+                              )
+       # compile_upsampler_with_triton_check(tts_codec.upsampler) ## optionally compiles upsampler with triton for considerable speed boosts
+        
+        
+
+    # 3. An instance method (operates on the object's data)
+    def encode_audio(self, voice):
+        """
+        Encodes the voice file. Takes time, hence good idea too cache it for later use.
+
+        Args:
+            voice (str): audio file path
+        """
+        
+        codes_str, transcript = self.tts_codec.encode_audio(voice, add_silence=32000)
+        return codes_str, transcript
+
+        
+    # 4. Another instance method (modifies the object's state)
+    def split_sentences(self, text):
+        """
+        Splits paragraphs into list of sentences
+
+        Args:
+            text (str): input paragraphs
+        """
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        return sentences
+
+    def decode_audio(self, tokens, batched=False):
+        """
+        Decodes audio from neucodec tokens
+
+        Args:
+            tokens (list/str): List or str of tokens to decode
+            batched (bool): To decode tokens as list or single string
+        """
+        if batched:
+            decoded = self.tts_codec.decode_tokens_batched(tokens)
+            pad_len = decoded[1]
+            audio = decoded[0].squeeze(1).flatten().numpy()
+            audio = audio[:-pad_len*480]
+        else:
+            audio = self.tts_codec.decode_tokens(tokens)[0].numpy()
+
+        return audio
+        
+    def generate(self, prompt, codes_str, transcript):
+        """
+        Generates speech from text, for single batch size
+
+        Args:
+            prompt (str): Input for tts model
+            voice (str): Description of voice
+        """
+        formatted_prompt = self.tts_codec.format_prompt(prompt, transcript, codes_str)
+        responses = self.pipe([formatted_prompt], gen_config=self.gen_config, do_preprocess=False)
+        generated_tokens = responses[0].text
+        audio = self.decode_audio(generated_tokens)
+        return audio
+
+    def batch_generate(self, prompts, codes_strs, transcripts):
+        """
+        Generates speech from text, for larger batch size
+
+        Args:
+            prompt (list): Input for tts model, list of prompts
+            voice (list): Description of voice, list of voices respective to prompt
+        """
+        formatted_prompts = []
+        for prompt, code_str, transcript in zip(prompts, cycle(codes_strs), cycle(transcripts)):
+            formatted_prompt = self.tts_codec.format_prompt(prompt, transcript, code_str)
+            formatted_prompts.append(formatted_prompt)
+        
+        responses = self.pipe(formatted_prompts, gen_config=self.gen_config, do_preprocess=False)
+        generated_tokens = [response.text for response in responses]
+        audios = self.decode_audio(generated_tokens, batched=True)
+        return audios
