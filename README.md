@@ -13,9 +13,10 @@ Speed was tested on 4070 Ti Super
 - 2.397 seconds to generate 508 seconds of audio
 - Hence **211x realtime** or 0.0047 RTF factor
 
-Simple 1 line installation; requires pip and git but uv will speed up installation considerably
+Simple 2 line installation; requires pip and git but uv will speed up installation considerably
 ```
 uv pip install git+https://github.com/ysharma3501/FastNeuTTS.git
+sudo apt install espeak-ng -y
 ```
 
 Usage for single batch size:
@@ -24,12 +25,15 @@ import re
 import time
 import torch
 from IPython.display import Audio
+from NeuTTS.engine import TTSEngine
 
+tts_engine = TTSEngine()
 text = "Wow. This place looks even better than I imagined. How did they set all this up so perfectly? The lights, the music, everything feels magical. I can't stop smiling right now."
-audio_file = "custom_reference_file" ## should be 3+ seconds
+
+audio_file = "audio_file" ## custom reference file, should be 3s or more
 
 codes_str, transcript = tts_engine.encode_audio(audio_file) ## good idea to cache speaker codes and transcripts so no need to encode again
-audio = tts_engine.batch_generate(text, [codes_str], [transcript])
+audio = tts_engine.batch_generate([text], [codes_str], [transcript])
 
 display(Audio(audio, rate=24000))
 ```
