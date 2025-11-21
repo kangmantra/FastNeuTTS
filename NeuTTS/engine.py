@@ -1,9 +1,12 @@
 import re
 import torch
+import random
 import librosa
 import numpy as np
 from itertools import cycle
-from NeuTTS.codec import TTSCodec
+from IPython.audio import Audio
+from collections import defaultdict
+from NeuTTS.codec import TTSCodec, overlap
 from lmdeploy import pipeline, TurbomindEngineConfig, GenerationConfig
 
 def compile_upsampler_with_triton_check(upsampler):
@@ -55,6 +58,7 @@ class TTSEngine:
                               min_p=0.1,
                               min_new_tokens=40
                               )
+        self.stored_dict = defaultdict(dict) 
        # compile_upsampler_with_triton_check(tts_codec.upsampler) ## optionally compiles upsampler with triton for considerable speed boosts
         
         
@@ -97,7 +101,7 @@ class TTSEngine:
             audio = decoded[0].squeeze(1).flatten().numpy()
             audio = audio[:-pad_len*480]
         else:
-            audio = self.tts_codec.decode_tokens(tokens)[0].numpy()
+            audio = self.tts_codec.decode_tokens(tokens)[0][0][0].numpy()
 
         return audio
         
@@ -132,3 +136,70 @@ class TTSEngine:
         generated_tokens = [response.text for response in responses]
         audios = self.decode_audio(generated_tokens, batched=True)
         return audios
+        
+    async def stream_audio(self, text, user_id, display_audio=True):
+        """
+        Fast async function for streaming audio: low as 100ms latency(depends on how long text is and reference file)
+
+        Args:
+            text (str): Input for tts model, single prompt
+            user_id (int): Unique user id for each seperate user stored in stored dict
+            display_audio (bool): To display audio or not
+        """
+        duration = 6
+        all_audios = []
+        all_tokens = ""
+        num_tokens = 0
+        first_audio = True
+        fade_samples = 100
+     
+        transcript = self.stored_dict[f"{user_id}"]['transcript']
+        codes_str = self.stored_dict[f"{user_id}"]['codes_str']
+
+        prompt = self.tts_codec.format_prompt(text, transcript, codes_str)
+        
+        t0 = time.time()
+        async for response in self.pipe.generate(messages=prompt, gen_config=self.gen_config, session_id=user_id, sequence_start=True, sequence_end=True, do_preprocess=False):
+            all_tokens += response.response
+            num_tokens += 1 
+            if num_tokens == 50:
+            
+                if first_audio:
+                    print(f"Latency is {time.time() - t0} seconds.")
+                    first_audio = False
+            
+                wav = self.decode_audio(all_tokens, False).astype(np.float32)
+                all_audios.append(wav)
+                wav = overlap(all_audios, fade_samples)
+                all_audios[-1] = wav
+
+                yield wav
+            
+                num_tokens = 0
+                all_tokens = ""
+            
+        if num_tokens > 20:
+            wav = self.decode_audio(all_tokens, False).astype(np.float32)
+        
+            all_audios.append(wav)
+            wav = overlap(all_audios, fade_samples)
+            all_audios[-1] = wav
+        
+            yield wav
+
+        if display_audio:
+            display(Audio(np.concatenate(all_audios), rate=24000))
+            
+    def add_speaker(self, audio_file):
+        """
+        Function to add a new user and unique speaker transcript and codes, returns user id to use for stream_audio function
+
+        Args:
+            audio_file (str): new audio file to encode and create unique user id for
+        """
+        codes_str, transcript = tts_engine.encode_audio(audio_file)
+        
+        user_id = random.randint(100000, 999999)
+        self.stored_dict[f"{user_id}"]['transcript'] = transcript
+        self.stored_dict[f"{user_id}"]['codes_str'] = codes_str
+        return user_id
