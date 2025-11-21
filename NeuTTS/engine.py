@@ -4,7 +4,7 @@ import random
 import librosa
 import numpy as np
 from itertools import cycle
-from IPython.audio import Audio
+from IPython.display import Audio
 from collections import defaultdict
 from NeuTTS.codec import TTSCodec, overlap
 from lmdeploy import pipeline, TurbomindEngineConfig, GenerationConfig
