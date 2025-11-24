@@ -85,4 +85,4 @@ Stars would be greatly appreciated and I would be happy to implement other featu
 - [x] fast streaming generation, current testing shows latencies low as 200ms
 - [ ] Multilingual models(hi, fr, de, etc.)
 - [ ] Efficent Multi speaker generation
-- [ ] Online inference using async LMdeploy
+- [x] Online inference using async LMdeploy. Rough implementation done, will improve later on.
